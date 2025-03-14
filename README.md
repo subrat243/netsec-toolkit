@@ -7,8 +7,8 @@
 A dual-tool suite for **authorized network testing** and **defensive monitoring**, designed for cybersecurity education and professional training.
 
 ## 📦 Contents
-- `traffic_generator.py` - Realistic UDP stress tester with IP spoofing
-- `defense_monitor.py` - AIO defensive monitoring & mitigation system
+- `deauth.py` - Realistic UDP stress tester with IP spoofing
+- `monitor.py` - AIO defensive monitoring & mitigation system
 - Sample reports and firewall rule templates
 
 ## ⚠️ Critical Warning
