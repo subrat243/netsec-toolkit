@@ -45,14 +45,14 @@ Unauthorized use violates laws and ethical standards.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/netsec-toolkit.git
+git clone https://github.com/subrat243/netsec-toolkit
 cd netsec-toolkit
 
 # Install dependencies
 pip install scapy colorama
 
 # Set executable permissions
-chmod +x traffic_generator.py defense_monitor.py
+chmod +x deauth.py monitor.py
 ```
 
 🚀 Usage
