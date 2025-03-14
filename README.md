@@ -22,7 +22,7 @@ Unauthorized use violates laws and ethical standards.
 
 ## ✨ Features
 
-### Offensive Tool (Stress Tester)
+### Offensive Tool (DeAuth)
 - 🎭 Realistic UDP traffic patterns
 - 🌐 IP spoofing with customizable intervals
 - 📊 Multi-core packet generation
