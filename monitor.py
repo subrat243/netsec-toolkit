@@ -1,201 +1,83 @@
 import time
-from scapy.all import sniff, IP, UDP
+import json
+from scapy.all import sniff, IP, UDP, TCP
+import psutil
 from collections import defaultdict
-import subprocess
-import sys
 from colorama import Fore, Style, init
+import threading
 
 # Initialize Colorama
 init(autoreset=True)
 
-class DefenseMonitor:
-    def __init__(self):
-        self.interface = self._get_interface()
-        self.udp_threshold = self._get_threshold()
-        self.duration = self._get_duration()
-        self.baseline = self._learn_baseline()
+# Traffic thresholds
+PACKET_THRESHOLD = 100  # Max packets per second from a single IP
+DATA_THRESHOLD_MB = 10  # Max data received from an IP (in MB)
+MONITOR_DURATION = 10    # Check every 10 seconds
+
+# Global variables for tracking traffic
+traffic_data = defaultdict(lambda: {"packets": 0, "bytes": 0, "flagged": False})
+
+# Monitor system performance
+def monitor_system():
+    while True:
+        cpu_usage = psutil.cpu_percent(interval=1)
+        ram_usage = psutil.virtual_memory().percent
+        net_io = psutil.net_io_counters()
         
-        self.counters = {
-            'total_udp': 0,
-            'unique_src_ips': defaultdict(int),
-            'dst_ports': defaultdict(int),
-            'start_time': time.time(),
-            'blocked_ips': set()
-        }
+        print(Fore.CYAN + f"[SYSTEM] CPU: {cpu_usage}%, RAM: {ram_usage}%, Net I/O: {net_io.bytes_recv / 1e6:.2f} MB")
+        time.sleep(5)
 
-    def _get_interface(self):
-        """Get network interface with validation"""
-        while True:
-            interface = input(Fore.BLUE + "Enter monitoring interface (e.g., eth0): " + Fore.MAGENTA)
-            try:
-                # Verify interface exists
-                subprocess.check_output(f"ip link show {interface}", shell=True)
-                return interface
-            except subprocess.CalledProcessError:
-                print(Fore.RED + f"Interface {interface} not found. Please try again.")
+# Packet processing function
+def process_packet(packet):
+    if IP in packet:
+        src_ip = packet[IP].src
+        packet_size = len(packet)
 
-    def _get_threshold(self):
-        """Validate UDP packet threshold"""
-        while True:
-            try:
-                threshold = int(input(Fore.BLUE + "Enter UDP flood threshold (packets/sec): " + Fore.MAGENTA))
-                if threshold >= 10:
-                    return threshold
-                print(Fore.RED + "Threshold must be ≥ 10 packets/sec")
-            except ValueError:
-                print(Fore.RED + "Invalid input. Please enter a number.")
+        traffic_data[src_ip]["packets"] += 1
+        traffic_data[src_ip]["bytes"] += packet_size
 
-    def _get_duration(self):
-        """Validate monitoring duration"""
-        while True:
-            try:
-                duration = int(input(Fore.BLUE + "Enter monitoring duration (minutes, 1-60): " + Fore.MAGENTA))
-                if 1 <= duration <= 60:
-                    return duration * 60  # Convert to seconds
-                print(Fore.RED + "Duration must be between 1-60 minutes")
-            except ValueError:
-                print(Fore.RED + "Invalid input. Please enter a number.")
+# Traffic monitoring function
+def monitor_traffic():
+    while True:
+        print(Fore.YELLOW + "\n[MONITOR] Checking traffic for anomalies...\n")
+        for ip, data in traffic_data.items():
+            if data["packets"] > PACKET_THRESHOLD or (data["bytes"] / 1e6) > DATA_THRESHOLD_MB:
+                if not data["flagged"]:
+                    print(Fore.RED + f"[ALERT] Suspicious traffic detected from {ip}")
+                    print(Fore.RED + f"        Packets: {data['packets']}, Data: {data['bytes'] / 1e6:.2f} MB\n")
+                    data["flagged"] = True  # Mark as flagged
+                    log_suspicious_activity(ip, data)
 
-    def _learn_baseline(self):
-        """Establish normal traffic baseline"""
-        print(Fore.YELLOW + "\n[!] Learning normal traffic baseline (10 seconds)...")
-        baseline = {'udp_count': 0, 'unique_ips': set()}
-        
-        def baseline_callback(pkt):
-            if pkt.haslayer(UDP):
-                baseline['udp_count'] += 1
-                baseline['unique_ips'].add(pkt[IP].src)
-        
-        sniff(iface=self.interface, prn=baseline_callback, timeout=10)
-        return baseline
+        # Reset traffic stats every MONITOR_DURATION seconds
+        traffic_data.clear()
+        time.sleep(MONITOR_DURATION)
 
-    def _packet_handler(self, pkt):
-        """Analyze incoming packets"""
-        if pkt.haslayer(UDP):
-            self.counters['total_udp'] += 1
-            src_ip = pkt[IP].src
-            dst_port = pkt[UDP].dport
-            
-            self.counters['unique_src_ips'][src_ip] += 1
-            self.counters['dst_ports'][dst_port] += 1
+# Log suspicious activity to a file
+def log_suspicious_activity(ip, data):
+    log_entry = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "ip": ip,
+        "packets": data["packets"],
+        "data_mb": round(data["bytes"] / 1e6, 2)
+    }
+    
+    with open("suspicious_traffic_log.json", "a") as log_file:
+        json.dump(log_entry, log_file, indent=2)
+        log_file.write(",\n")
 
-            # Auto-block suspicious IPs
-            if self.counters['unique_src_ips'][src_ip] > self.udp_threshold:
-                self._block_ip(src_ip)
+    print(Fore.GREEN + f"[LOGGED] Suspicious traffic from {ip} has been recorded.")
 
-    def _block_ip(self, ip):
-        """Block IP using iptables"""
-        if ip not in self.counters['blocked_ips']:
-            print(Fore.RED + f"[!] Blocking suspicious IP: {ip}")
-            subprocess.run(
-                f"iptables -A INPUT -s {ip} -j DROP",
-                shell=True,
-                check=True
-            )
-            self.counters['blocked_ips'].add(ip)
+# Sniff network traffic
+def start_sniffing():
+    print(Fore.MAGENTA + Style.BRIGHT + "\n[DEFENDER] Monitoring network traffic...")
+    sniff(filter="ip", prn=process_packet, store=False)
 
-    def _analyze_traffic(self):
-        """Generate security report"""
-        current_time = time.time()
-        elapsed = current_time - self.counters['start_time']
-        
-        report = {
-            'monitoring_duration': f"{elapsed:.2f} seconds",
-            'total_udp_packets': self.counters['total_udp'],
-            'unique_attack_ips': len(self.counters['unique_src_ips']),
-            'top_source_ips': sorted(
-                self.counters['unique_src_ips'].items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:5],
-            'targeted_ports': self.counters['dst_ports'],
-            'blocked_ips': list(self.counters['blocked_ips']),
-            'average_udp_rate': self.counters['total_udp'] / elapsed,
-            'baseline_comparison': {
-                'normal_udp_rate': self.baseline['udp_count'] / 10,
-                'current_udp_rate': self.counters['total_udp'] / elapsed
-            }
-        }
-        
-        return report
-
-    def _print_report(self, report):
-        """Display formatted security report"""
-        print(Fore.MAGENTA + "\n=== SECURITY REPORT ===")
-        print(Fore.CYAN + f"Monitoring Duration: {report['monitoring_duration']}")
-        print(Fore.CYAN + f"Total UDP Packets: {report['total_udp_packets']}")
-        print(Fore.CYAN + f"Unique Source IPs: {report['unique_attack_ips']}")
-        
-        print(Fore.YELLOW + "\nTop 5 Suspicious IPs:")
-        for ip, count in report['top_source_ips']:
-            print(f"  {ip}: {count} packets")
-
-        print(Fore.YELLOW + "\nTargeted Ports:")
-        for port, count in report['targeted_ports'].items():
-            print(f"  Port {port}: {count} packets")
-
-        print(Fore.RED + "\nBlocked IPs:")
-        print("\n".join(report['blocked_ips']) if report['blocked_ips'] else print("  None")
-
-        print(Fore.GREEN + "\nTraffic Analysis:")
-        print(f"Baseline UDP Rate: {report['baseline_comparison']['normal_udp_rate']:.2f} pps")
-        print(f"Current UDP Rate: {report['baseline_comparison']['current_udp_rate']:.2f} pps")
-        
-        if report['baseline_comparison']['current_udp_rate'] > 3 * report['baseline_comparison']['normal_udp_rate']:
-            print(Fore.RED + "ALERT: UDP flood detected!")
-        else:
-            print(Fore.GREEN + "Network status: Normal")
-
-    def start_monitoring(self):
-        """Main monitoring loop"""
-        print(Fore.YELLOW + f"\n[!] Starting monitoring on {self.interface} for {self.duration/60} minutes")
-        print(Fore.CYAN + f"UDP flood threshold: {self.udp_threshold} packets/sec")
-        
-        try:
-            # Start packet capture in background
-            sniff_thread = threading.Thread(
-                target=sniff,
-                kwargs={
-                    'iface': self.interface,
-                    'prn': self._packet_handler,
-                    'timeout': self.duration
-                }
-            )
-            sniff_thread.start()
-
-            # Periodic reporting
-            while sniff_thread.is_alive():
-                time.sleep(5)
-                report = self._analyze_traffic()
-                self._print_report(report)
-                print("\n" + "-"*50 + "\n")
-
-        except KeyboardInterrupt:
-            print(Fore.RED + "\n[!] Monitoring stopped by user")
-        
-        finally:
-            self._cleanup()
-
-    def _cleanup(self):
-        """Remove firewall rules and final report"""
-        print(Fore.YELLOW + "\n[!] Cleaning up firewall rules...")
-        for ip in self.counters['blocked_ips']:
-            subprocess.run(
-                f"iptables -D INPUT -s {ip} -j DROP",
-                shell=True,
-                stderr=subprocess.DEVNULL
-            )
-        
-        final_report = self._analyze_traffic()
-        print(Fore.MAGENTA + "\n=== FINAL REPORT ===")
-        self._print_report(final_report)
-
+# Run monitoring functions in separate threads
 if __name__ == "__main__":
-    print(Fore.MAGENTA + Style.BRIGHT + "\nNetwork Defense Monitor")
-    print(Fore.BLUE + "UDP Flood Detection and Mitigation System\n")
+    system_thread = threading.Thread(target=monitor_system, daemon=True)
+    traffic_thread = threading.Thread(target=monitor_traffic, daemon=True)
     
-    if not 'sudo' in sys.argv:
-        print(Fore.RED + "Warning: Run with sudo for active mitigation capabilities")
+    system_thread.start()
+    traffic_thread.start()
     
-    monitor = DefenseMonitor()
-    monitor.start_monitoring()
+    start_sniffing()
