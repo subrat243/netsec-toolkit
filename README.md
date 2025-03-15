@@ -1,171 +1,129 @@
-# NetSec Toolkit: Offensive-Defensive Network Testing Suite
+# **NetSec ToolKit - Network Traffic Generator & Defensive Monitor**  
 
-![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue)
-![License](https://img.shields.io/badge/License-GPL--3.0-red)
-![Status](https://img.shields.io/badge/Status-Educational%20Use%20Only-lightgrey)
+🚀 **DeAuth** is a **network traffic generator** for educational and authorized testing, alongside a **defensive monitoring script** to detect and prevent abnormal network activity. These scripts are built using Python and Scapy to help cybersecurity professionals, researchers, and network administrators analyze network traffic effectively.  
 
-A dual-tool suite for **authorized network testing** and **defensive monitoring**, designed for cybersecurity education and professional training.
+---
 
-## 📦 Contents
-- `deauth.py` - Realistic UDP stress tester with IP spoofing
-- `monitor.py` - AIO defensive monitoring & mitigation system
-- Sample reports and firewall rule templates
+## **⚠️ Disclaimer**  
+> **This tool is for educational and authorized testing purposes only.**  
+> Unauthorized usage against networks or individuals is illegal and unethical.  
+> The developer is not responsible for any misuse of this software.  
 
-## ⚠️ Critical Warning
-**This toolkit must ONLY be used:**
-- On networks you own/administrate
-- With written authorization
-- In isolated lab environments
-- For educational/research purposes
+---
 
-Unauthorized use violates laws and ethical standards.
+## **🛠 Features**
+### **1️⃣ Network Traffic Generator (`deauth.py`)**
+✅ **Generates Realistic UDP Traffic** – Creates packets with customizable size and rate.  
+✅ **Multi-Core Processing (Limited to 6 cores)** – Ensures efficient load testing.  
+✅ **RAM Usage Control** – Prevents excessive resource consumption.  
+✅ **Live Process Updates** – Displays real-time progress on the terminal.  
+✅ **Generates JSON Test Reports** – Saves network test results automatically.  
+✅ **Supports Custom Payloads** – Users can provide custom packet payloads for simulation.  
+✅ **Adjustable Packet Rate** – Control how fast packets are sent.  
+✅ **Targeted Port Flooding** – Simulates high-traffic conditions on specific ports.  
+✅ **Auto-Termination on Network Saturation** – Prevents excessive congestion.  
 
-## ✨ Features
+---
 
-### Offensive Tool (DeAuth)
-- 🎭 Realistic UDP traffic patterns
-- 🌐 IP spoofing with customizable intervals
-- 📊 Multi-core packet generation
-- 📝 Automatic JSON reporting
-- 🛡️ Ethical permission verification
+### **2️⃣ Defensive Monitor (`monitor.py`)**
+🛡 **Monitors Real-Time Network Traffic** – Captures incoming packets and tracks suspicious activity.  
+🔍 **Detects High Traffic Volume** – Flags potential DoS or network anomalies.  
+📊 **Tracks System Resource Usage** – Monitors CPU, RAM, and Network I/O.  
+⚠️ **Alerts on Unusual Activity** – Warns when a single IP sends excessive traffic.  
+📁 **Logs Suspicious Activity** – Saves flagged events to a JSON report.  
+🛑 **Auto-Blocking Feature** – Can blacklist and drop packets from malicious IPs.  
+📌 **Whitelist & Blacklist Support** – Allows users to specify trusted and blocked IPs.  
+📊 **Graphical Report Generation** – Creates network activity reports using Matplotlib.  
+🔄 **Real-Time Logging Dashboard** – View network threats as they occur.  
 
-### Defensive Tool (Monitor)
-- 🚨 Real-time UDP flood detection
-- 🔥 Active IP blocking (iptables integration)
-- 📈 Baseline traffic learning
-- 🕵️ Forensic reporting
-- 🧹 Automatic rule cleanup
+---
 
-## 🛠️ Installation
+## **📦 Installation & Requirements**
+**Prerequisites**:  
+- **Python 3.x**  
+- **pip (Python package manager)**  
 
-**Requirements:**
-- Python 3.8+
-- Root privileges (for raw socket operations)
-- Test network environment
-
+**Required Python Libraries**:
 ```bash
-# Clone repository
-git clone https://github.com/subrat243/netsec-toolkit
-cd netsec-toolkit
-
-# Install dependencies
-pip install scapy colorama
-
-# Set executable permissions
-chmod +x deauth.py monitor.py
+pip install scapy psutil colorama matplotlib
 ```
 
-🚀 Usage
-Stress Tester (Offensive)
+---
+
+## **🚀 How to Use**
+### **1️⃣ Network Traffic Generator**
+⚠️ **Ensure you have permission before running network tests.**  
+
+🔹 **Run the script**:  
 ```bash
-sudo ./deauth.py
+python3 deauth.py
 ```
+🔹 **Provide required inputs** (Target IP, Port, Packet Size, Duration, etc.).  
+🔹 **Live updates will be displayed on the terminal.**  
+🔹 **A JSON report will be saved after the test.**  
 
-**Interactive Setup:**
+---
 
-1. Enter target IP and port
-
-2. Set test duration (1-3600s)
-
-3. Configure packet sizes (64-65500 bytes)
-
-4. Set IP spoof interval (1-60s)
-
-5. Confirm ethical requirements
-
-**Example Report:**
-
-```json
-{
-  "test_id": 1678901234,
-  "target": "192.168.1.100:80",
-  "duration_sec": 300,
-  "metrics": {
-    "total_packets": 124500,
-    "total_bytes": 156MB,
-    "spoofed_ips_used": 42
-  }
-}
-```
-
-**Defense Monitor (Defensive)**
+### **2️⃣ Defensive Network Monitor**
+🔹 **Run the script**:  
 ```bash
-sudo ./monitor.py
+python3 monitor.py
+```
+🔹 **The script will start monitoring network traffic in real-time.**  
+🔹 **Any suspicious activity will be flagged and logged in `suspicious_traffic_log.json`.**  
+🔹 **CPU, RAM, and Network I/O stats will be displayed.**  
+🔹 **Optional Auto-Blocking will prevent attacks.**  
+
+---
+
+## **📜 Example Usage**
+### **1️⃣ Traffic Generator Output**
+```
+▓█████▄ ▓█████ ▄▄▄       █    ██ ▄▄▄█████▓ ██░ ██ 
+▒██▀ ██▌▓█   ▀▒████▄     ██  ▓██▒▓  ██▒ ▓▒▓██░ ██▒
+░██   █▌▒███  ▒██  ▀█▄  ▓██  ▒██░▒ ▓██░ ▒░▒██▀▀██░
+░▓█▄   ▌▒▓█  ▄░██▄▄▄▄██ ▓▓█  ░██░░ ▓██▓ ░ ░▓█ ░██ 
+░▒████▓ ░▒████▒▓█   ▓██▒▒▒█████▓   ▒██▒ ░ ░▓█▒░██▓
+ ▒▒▓  ▒ ░░ ▒░ ░▒▒   ▓▒█░░▒▓▒ ▒ ▒   ▒ ░░    ▒ ░░▒░▒
+ ░ ▒  ▒  ░ ░  ░ ▒   ▒▒ ░░░▒░ ░ ░     ░     ▒ ░▒░ ░
+ ░ ░  ░    ░    ░   ▒    ░░░ ░ ░   ░       ░  ░░ ░
+   ░       ░  ░     ░  ░   ░               ░  ░  ░
+ ░                                DeAuth.v1   
+
+[!] Starting authorized educational test
+• Target: 192.168.1.10:80
+• Duration: 60s
+• Packet Size: 64-1024 bytes
+• Spoofing: Disabled
+• Cores used: 6
 ```
 
-**Workflow:**
-
-1. Select monitoring interface (e.g., eth0)
-
-2. Set UDP flood threshold (packets/sec)
-
-3. Set monitoring duration (1-60 mins)
-
-4. System learns normal traffic baseline
-
-5. Automatic detection/mitigation engages
-
-**Sample Output:**
-
+### **2️⃣ Defensive Monitor Output**
 ```
-=== SECURITY REPORT ===
-Monitoring Duration: 157.32 seconds
-Total UDP Packets: 24,850
-Unique Source IPs: 38
+[DEFENDER] Monitoring network traffic...
 
-Top 5 Suspicious IPs:
-  192.168.5.21: 4200 packets
-  10.0.0.153: 3800 packets
+[SYSTEM] CPU: 12.5%, RAM: 43.2%, Net I/O: 1.23 MB
 
-Blocked IPs:
-  192.168.5.21
-  10.0.0.153
+[MONITOR] Checking traffic for anomalies...
 
-Traffic Analysis:
-Baseline UDP Rate: 12.4 pps
-Current UDP Rate: 158.2 pps
-ALERT: UDP flood detected!
+[ALERT] Suspicious traffic detected from 192.168.1.50
+        Packets: 250, Data: 15.6 MB
+
+[LOGGED] Suspicious traffic from 192.168.1.50 has been recorded.
+
+[ACTION] IP 192.168.1.50 added to blacklist.
 ```
 
-⚖️ Legal & Ethical Requirements
-1. **Written Authorization** - Signed document from network owner
+---
 
-2. **Network Isolation** - Use VLANs/air-gapped networks
+## **🤝 Contributing**
+Want to improve this project? Follow these steps:  
+1. **Fork** the repository.  
+2. **Create** a new branch (`feature-newfeature`).  
+3. **Commit** your changes.  
+4. **Push** to your branch.  
+5. **Submit** a Pull Request.  
 
-3. **Time Restrictions** - Pre-approved testing windows
+---
 
-4. **Data Handling** - Delete logs after 24 hours
-
-5. **Non-Disclosure** - Protect identified vulnerabilities
-
-📚 Educational Value
-Understand UDP flood attack vectors
-
-- Analyze spoofed traffic patterns
-
-- Practice defensive configuration:
-
-```bash
-# Example iptables rate limiting
-iptables -A INPUT -p udp -m state --state NEW -m limit --limit 100/second -j ACCEPT
-iptables -A INPUT -p udp -j DROP
-```
-- Develop incident response skills
-
-📋 Technical Specs
-- **Python**: 3.8+ (async I/O, multiprocessing)
-
-- **Dependencies**: Scapy 2.4.5+, Colorama 0.4.4+
-
-- **OS**: Linux (Kernel 4.15+ recommended)
-
-- **License**: GPL-3.0
-
-**Disclaimer**: This project is for educational purposes only. The developers assume no liability for unauthorized use. Always obtain proper authorization before testing any network system. This README provides comprehensive documentation while emphasizing ethical requirements. It includes:
-- Clear warnings about legal responsibilities
-- Technical setup instructions
-- Usage examples for both tools
-- Defensive configuration guidance
-- Compliance documentation structure
-- Educational context for proper use
-
+**⚡ Stay Ethical. Stay Secure. Happy Hacking!** 🚀
