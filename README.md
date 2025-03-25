@@ -1,129 +1,132 @@
-# **NetSec ToolKit - Network Traffic Generator & Defensive Monitor**  
+# Network Testing and Monitoring Toolkit
 
-🚀 **DeAuth** is a **network traffic generator** for educational and authorized testing, alongside a **defensive monitoring script** to detect and prevent abnormal network activity. These scripts are built using Python and Scapy to help cybersecurity professionals, researchers, and network administrators analyze network traffic effectively.  
+## Overview
 
----
+This toolkit provides two powerful Python scripts for network assessment:
+1. **Network Stress Tester**: A tool to evaluate your network's resilience under various load conditions
+2. **Network Monitor**: A comprehensive monitoring solution to track network performance over time
 
-## **⚠️ Disclaimer**  
-> **This tool is for educational and authorized testing purposes only.**  
-> Unauthorized usage against networks or individuals is illegal and unethical.  
-> The developer is not responsible for any misuse of this software.  
+## Features
 
----
+### Network Stress Tester
+- TCP flood attack simulation
+- UDP flood attack simulation
+- HTTP flood attack simulation
+- Internet speed testing (download/upload)
+- Ping latency testing
 
-## **🛠 Features**
-### **1️⃣ Network Traffic Generator (`deauth.py`)**
-✅ **Generates Realistic UDP Traffic** – Creates packets with customizable size and rate.  
-✅ **Multi-Core Processing (Limited to 6 cores)** – Ensures efficient load testing.  
-✅ **RAM Usage Control** – Prevents excessive resource consumption.  
-✅ **Live Process Updates** – Displays real-time progress on the terminal.  
-✅ **Generates JSON Test Reports** – Saves network test results automatically.  
-✅ **Supports Custom Payloads** – Users can provide custom packet payloads for simulation.  
-✅ **Adjustable Packet Rate** – Control how fast packets are sent.  
-✅ **Targeted Port Flooding** – Simulates high-traffic conditions on specific ports.  
-✅ **Auto-Termination on Network Saturation** – Prevents excessive congestion.  
+### Network Monitor
+- Continuous network statistics collection
+- Bandwidth usage monitoring
+- Latency measurement
+- Internet connectivity checks
+- HTTP service availability testing
+- Automated speed testing
+- CSV data logging
+- Graphical report generation
 
----
+## Installation
 
-### **2️⃣ Defensive Monitor (`monitor.py`)**
-🛡 **Monitors Real-Time Network Traffic** – Captures incoming packets and tracks suspicious activity.  
-🔍 **Detects High Traffic Volume** – Flags potential DoS or network anomalies.  
-📊 **Tracks System Resource Usage** – Monitors CPU, RAM, and Network I/O.  
-⚠️ **Alerts on Unusual Activity** – Warns when a single IP sends excessive traffic.  
-📁 **Logs Suspicious Activity** – Saves flagged events to a JSON report.  
-🛑 **Auto-Blocking Feature** – Can blacklist and drop packets from malicious IPs.  
-📌 **Whitelist & Blacklist Support** – Allows users to specify trusted and blocked IPs.  
-📊 **Graphical Report Generation** – Creates network activity reports using Matplotlib.  
-🔄 **Real-Time Logging Dashboard** – View network threats as they occur.  
+1. Clone this repository or download the scripts
+2. Ensure Python 3.6+ is installed
+3. Install required dependencies:
 
----
-
-## **📦 Installation & Requirements**
-**Prerequisites**:  
-- **Python 3.x**  
-- **pip (Python package manager)**  
-
-**Required Python Libraries**:
 ```bash
-pip install scapy psutil colorama matplotlib
+pip install -r requirements.txt
 ```
 
----
+The `requirements.txt` file should contain:
+```
+psutil
+speedtest-cli
+ping3
+requests
+matplotlib
+pandas
+```
 
-## **🚀 How to Use**
-### **1️⃣ Network Traffic Generator**
-⚠️ **Ensure you have permission before running network tests.**  
+## Usage
 
-🔹 **Run the script**:  
+### Network Stress Tester
+
+```
+python stress_tester.py <command> [arguments]
+```
+
+**Commands:**
+- `tcp <target_ip> <target_port>` - TCP flood attack
+- `udp <target_ip> <target_port>` - UDP flood attack
+- `http <target_url>` - HTTP flood attack
+- `speedtest` - Run internet speed test
+- `ping <target>` - Ping latency test
+
+**Options:**
+- `--duration` - Attack duration in seconds (default: 60)
+- `--threads` - Number of threads to use (default: 50)
+- `--count` - Number of pings to send (ping command only)
+
+**Examples:**
 ```bash
-python3 deauth.py
+# TCP flood attack
+python stress_tester.py tcp 192.168.1.100 80 --duration 120 --threads 100
+
+# Speed test
+python stress_tester.py speedtest
+
+# Ping test
+python stress_tester.py ping google.com --count 10
 ```
-🔹 **Provide required inputs** (Target IP, Port, Packet Size, Duration, etc.).  
-🔹 **Live updates will be displayed on the terminal.**  
-🔹 **A JSON report will be saved after the test.**  
 
----
+### Network Monitor
 
-### **2️⃣ Defensive Network Monitor**
-🔹 **Run the script**:  
+```
+python network_monitor.py [options]
+```
+
+**Options:**
+- `--interval` - Monitoring interval in seconds (default: 5)
+- `--duration` - Monitoring duration in seconds (default: 3600)
+- `--output` - Output CSV file (default: "network_stats.csv")
+- `--report` - Generate report from existing data
+
+**Examples:**
 ```bash
-python3 monitor.py
-```
-🔹 **The script will start monitoring network traffic in real-time.**  
-🔹 **Any suspicious activity will be flagged and logged in `suspicious_traffic_log.json`.**  
-🔹 **CPU, RAM, and Network I/O stats will be displayed.**  
-🔹 **Optional Auto-Blocking will prevent attacks.**  
+# Monitor for 30 minutes
+python network_monitor.py --duration 1800
 
----
+# Monitor with 10-second intervals
+python network_monitor.py --interval 10
 
-## **📜 Example Usage**
-### **1️⃣ Traffic Generator Output**
-```
-▓█████▄ ▓█████ ▄▄▄       █    ██ ▄▄▄█████▓ ██░ ██ 
-▒██▀ ██▌▓█   ▀▒████▄     ██  ▓██▒▓  ██▒ ▓▒▓██░ ██▒
-░██   █▌▒███  ▒██  ▀█▄  ▓██  ▒██░▒ ▓██░ ▒░▒██▀▀██░
-░▓█▄   ▌▒▓█  ▄░██▄▄▄▄██ ▓▓█  ░██░░ ▓██▓ ░ ░▓█ ░██ 
-░▒████▓ ░▒████▒▓█   ▓██▒▒▒█████▓   ▒██▒ ░ ░▓█▒░██▓
- ▒▒▓  ▒ ░░ ▒░ ░▒▒   ▓▒█░░▒▓▒ ▒ ▒   ▒ ░░    ▒ ░░▒░▒
- ░ ▒  ▒  ░ ░  ░ ▒   ▒▒ ░░░▒░ ░ ░     ░     ▒ ░▒░ ░
- ░ ░  ░    ░    ░   ▒    ░░░ ░ ░   ░       ░  ░░ ░
-   ░       ░  ░     ░  ░   ░               ░  ░  ░
- ░                                DeAuth.v1   
-
-[!] Starting authorized educational test
-• Target: 192.168.1.10:80
-• Duration: 60s
-• Packet Size: 64-1024 bytes
-• Spoofing: Disabled
-• Cores used: 6
+# Generate report from collected data
+python network_monitor.py --report
 ```
 
-### **2️⃣ Defensive Monitor Output**
-```
-[DEFENDER] Monitoring network traffic...
+## Output
 
-[SYSTEM] CPU: 12.5%, RAM: 43.2%, Net I/O: 1.23 MB
+### Stress Tester
+- Real-time attack statistics in console
+- Speed test results in Mbps
+- Ping test results with latency measurements
 
-[MONITOR] Checking traffic for anomalies...
+### Network Monitor
+- CSV file with timestamped network metrics
+- Optional PNG report with graphs of:
+  - Network throughput (sent/received data)
+  - Latency over time
+- Console output with current statistics
 
-[ALERT] Suspicious traffic detected from 192.168.1.50
-        Packets: 250, Data: 15.6 MB
+## Legal and Ethical Considerations
 
-[LOGGED] Suspicious traffic from 192.168.1.50 has been recorded.
+⚠️ **Important:**  
+- Only use these tools on networks you own or have explicit permission to test
+- Unauthorized network testing may be illegal in your jurisdiction
+- These tools are for educational and legitimate network assessment purposes only
+- The authors assume no liability for misuse of these tools
 
-[ACTION] IP 192.168.1.50 added to blacklist.
-```
+## Support
 
----
+For issues or feature requests, please open an issue on the GitHub repository.
 
-## **🤝 Contributing**
-Want to improve this project? Follow these steps:  
-1. **Fork** the repository.  
-2. **Create** a new branch (`feature-newfeature`).  
-3. **Commit** your changes.  
-4. **Push** to your branch.  
-5. **Submit** a Pull Request.  
+## License
 
----
-
-**⚡ Stay Ethical. Stay Secure. Happy Hacking!** 🚀
+This project is licensed under the MIT License - see the LICENSE file for details.
