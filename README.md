@@ -32,10 +32,10 @@ This toolkit provides two powerful Python scripts for network assessment:
 3. Install required dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install <requirements>
 ```
 
-The `requirements.txt` file should contain:
+The requirements should installed:
 ```
 psutil
 speedtest-cli
