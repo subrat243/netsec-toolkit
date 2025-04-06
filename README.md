@@ -50,7 +50,7 @@ pandas
 ### Network Stress Tester
 
 ```
-python stress_tester.py <command> [arguments]
+python stress.py <command> [arguments]
 ```
 
 **Commands:**
@@ -71,16 +71,16 @@ python stress_tester.py <command> [arguments]
 python stress_tester.py tcp 192.168.1.100 80 --duration 120 --threads 100
 
 # Speed test
-python stress_tester.py speedtest
+python stress.py speedtest
 
 # Ping test
-python stress_tester.py ping google.com --count 10
+python stress.py ping google.com --count 10
 ```
 
 ### Network Monitor
 
 ```
-python network_monitor.py [options]
+python monitor.py [options]
 ```
 
 **Options:**
@@ -92,13 +92,13 @@ python network_monitor.py [options]
 **Examples:**
 ```bash
 # Monitor for 30 minutes
-python network_monitor.py --duration 1800
+python monitor.py --duration 1800
 
 # Monitor with 10-second intervals
-python network_monitor.py --interval 10
+python monitor.py --interval 10
 
 # Generate report from collected data
-python network_monitor.py --report
+python monitor.py --report
 ```
 
 ## Output
